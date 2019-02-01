@@ -1,0 +1,9 @@
+= PodSet Operator
+
+An example of Kubernetes Operator built with the https://github.com/operator-framework/operator-sdk[Operator SDK].
+
+This PodSet operator takes care of scaling up and down pods that run a `sleep 3600` command in a busybox image. Nothing really fancy, but the point is to:
+
+- see how the CRD and operator controller can be defined, packaged and deployed 
+- demonstrate the logic of reconcialation when a custom resource changes, or when pods are added or removed by a user
+
