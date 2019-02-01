@@ -15,8 +15,7 @@ spec:
       serviceAccountName: podset-operator
       containers:
         - name: podset-operator
-          # Replace this with the built image name
-          image: REPLACE_IMAGE
+          image: quay.io/xcoulon/podset-operator:latest
           ports:
           - containerPort: 60000
             name: metrics

@@ -2,13 +2,15 @@ package podset
 
 import (
 	"context"
+	"reflect"
 
 	appv1alpha1 "github.com/xcoulon/podset-operator/pkg/apis/app/v1alpha1"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -86,8 +88,8 @@ func (r *ReconcilePodSet) Reconcile(request reconcile.Request) (reconcile.Result
 	reqLogger.Info("Reconciling PodSet")
 
 	// Fetch the PodSet instance
-	instance := &appv1alpha1.PodSet{}
-	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
+	podSet := &appv1alpha1.PodSet{}
+	err := r.client.Get(context.TODO(), request.NamespacedName, podSet)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -99,45 +101,87 @@ func (r *ReconcilePodSet) Reconcile(request reconcile.Request) (reconcile.Result
 		return reconcile.Result{}, err
 	}
 
-	// Define a new Pod object
-	pod := newPodForCR(instance)
-
-	// Set PodSet instance as the owner and controller
-	if err := controllerutil.SetControllerReference(instance, pod, r.scheme); err != nil {
+	// List all pods owned by this PodSet instance
+	lbls := labels.Set{
+		"app":     podSet.Name,
+		"version": "v0.1",
+	}
+	existingPods := &corev1.PodList{}
+	err = r.client.List(context.TODO(),
+		&client.ListOptions{
+			Namespace:     request.Namespace,
+			LabelSelector: labels.SelectorFromSet(lbls),
+		},
+		existingPods)
+	if err != nil {
+		reqLogger.Error(err, "failed to list existing pods in the podSet")
 		return reconcile.Result{}, err
 	}
+	existingPodNames := []string{}
+	// Count the pods that are pending or running as available
+	for _, pod := range existingPods.Items {
+		if pod.GetObjectMeta().GetDeletionTimestamp() != nil {
+			continue
+		}
+		if pod.Status.Phase == corev1.PodPending || pod.Status.Phase == corev1.PodRunning {
+			existingPodNames = append(existingPodNames, pod.GetObjectMeta().GetName())
+		}
+	}
 
-	// Check if this Pod already exists
-	found := &corev1.Pod{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, found)
-	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new Pod", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
-		err = r.client.Create(context.TODO(), pod)
+	reqLogger.Info("Checking podset", "expected replicas", podSet.Spec.Replicas, "Pod.Names", existingPodNames)
+	// Update the status if necessary
+	status := appv1alpha1.PodSetStatus{
+		PodNames: existingPodNames,
+	}
+	if !reflect.DeepEqual(podSet.Status, status) {
+		podSet.Status = status
+		err := r.client.Update(context.TODO(), podSet)
 		if err != nil {
+			reqLogger.Error(err, "failed to update the podSet")
 			return reconcile.Result{}, err
 		}
-
-		// Pod created successfully - don't requeue
-		return reconcile.Result{}, nil
-	} else if err != nil {
-		return reconcile.Result{}, err
+	}
+	// Scale Down Pods
+	if int32(len(existingPodNames)) > podSet.Spec.Replicas {
+		// delete a pod. Just one at a time (this reconciler will be called again afterwards)
+		reqLogger.Info("Deleting a pod in the podset", "expected replicas", podSet.Spec.Replicas, "Pod.Names", existingPodNames)
+		pod := existingPods.Items[0]
+		err = r.client.Delete(context.TODO(), &pod)
+		if err != nil {
+			reqLogger.Error(err, "failed to delete a pod")
+			return reconcile.Result{}, err
+		}
 	}
 
-	// Pod already exists - don't requeue
-	reqLogger.Info("Skip reconcile: Pod already exists", "Pod.Namespace", found.Namespace, "Pod.Name", found.Name)
-	return reconcile.Result{}, nil
+	// Scale Up Pods
+	if int32(len(existingPodNames)) < podSet.Spec.Replicas {
+		// create a new pod. Just one at a time (this reconciler will be called again afterwards)
+		reqLogger.Info("Adding a pod in the podset", "expected replicas", podSet.Spec.Replicas, "Pod.Names", existingPodNames)
+		pod := newPodForCR(podSet)
+		if err := controllerutil.SetControllerReference(podSet, pod, r.scheme); err != nil {
+			reqLogger.Error(err, "unable to set owner reference on new pod")
+			return reconcile.Result{}, err
+		}
+		err = r.client.Create(context.TODO(), pod)
+		if err != nil {
+			reqLogger.Error(err, "failed to create a pod")
+			return reconcile.Result{}, err
+		}
+	}
+	return reconcile.Result{Requeue: true}, nil
 }
 
 // newPodForCR returns a busybox pod with the same name/namespace as the cr
 func newPodForCR(cr *appv1alpha1.PodSet) *corev1.Pod {
 	labels := map[string]string{
-		"app": cr.Name,
+		"app":     cr.Name,
+		"version": "v0.1",
 	}
 	return &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      cr.Name + "-pod",
-			Namespace: cr.Namespace,
-			Labels:    labels,
+			GenerateName: cr.Name + "-pod",
+			Namespace:    cr.Namespace,
+			Labels:       labels,
 		},
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
