@@ -135,7 +135,7 @@ func (r *ReconcilePodSet) Reconcile(request reconcile.Request) (reconcile.Result
 	}
 	if !reflect.DeepEqual(podSet.Status, status) {
 		podSet.Status = status
-		err := r.client.Status().Update(context.TODO(), podSet)
+		err := r.client.Update(context.TODO(), podSet)
 		if err != nil {
 			reqLogger.Error(err, "failed to update the podSet")
 			return reconcile.Result{}, err
