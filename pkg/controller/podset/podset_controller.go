@@ -108,11 +108,11 @@ func (r *ReconcilePodSet) Reconcile(request reconcile.Request) (reconcile.Result
 	}
 	existingPods := &corev1.PodList{}
 	err = r.client.List(context.TODO(),
+		existingPods,
 		&client.ListOptions{
 			Namespace:     request.Namespace,
 			LabelSelector: labels.SelectorFromSet(lbls),
-		},
-		existingPods)
+		})
 	if err != nil {
 		reqLogger.Error(err, "failed to list existing pods in the podSet")
 		return reconcile.Result{}, err
