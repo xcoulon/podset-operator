@@ -15,7 +15,7 @@ This PodSet operator takes care of scaling up and down pods that run a `sleep 36
 
 == Building and deploying
 
-Before deploying the operator, we need to create the link:./tree/master/deploy/crds[Custom Resource Definitions], which (as their name suggests) define the custom resources we will manage with this operator, and we also need to configure the link:./tree/master/deploy/service_account.yaml[Service Account] along with its link:./tree/master/deploy/role.yaml[role] and link:./tree/master/deploy/role_binding.yaml[role binding].
+Before deploying the operator, we need to create the link:./deploy/crds[Custom Resource Definitions], which (as their name suggests) define the custom resources we will manage with this operator, and we also need to configure the link:./deploy/service_account.yaml[Service Account] along with its link:./deploy/role.yaml[role] and link:./deploy/role_binding.yaml[role binding].
 
 The commands below use the `oc` CLI which is the equivalent of `kubectl` for OpenShift.
 
@@ -55,7 +55,7 @@ INFO[0000] Using namespace podset-operator-test.
 ...
 ```
 
-in a second terminal, we can use the link:./tree/master/deploy/crds/app_v1alpha1_podset_cr.yaml[custom resource example] to see how the operator controller reacts:
+in a separate terminal session, we can use the link:./deploy/crds/app_v1alpha1_podset_cr.yaml[custom resource example] to see how the operator controller reacts:
 
 ```
 # create a custom PodSet resource to obtain 3 pods
@@ -72,4 +72,4 @@ example-podset-podtqdzs   1/1     Running   0          2m19s
 
 == License
 
-This project is available under the link:./tree/master/LICENSE[Apache License, Version 2.0].
+This project is available under the link:./LICENSE[Apache License, Version 2.0].
