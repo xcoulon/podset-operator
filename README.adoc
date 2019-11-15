@@ -25,7 +25,7 @@ $ oc new-project podset-operator-test
 Now using project "podset-operator-test" on server ...
 
 # Create the CRDs
-$ oc create -f deploy/crds/app_v1alpha1_podset_crd.yaml
+$ oc create -f deploy/crds/app.example.com_podsets_crd.yaml
 customresourcedefinition.apiextensions.k8s.io/podsets.app.example.com created
 
 # create the Service Account
@@ -59,7 +59,7 @@ in a separate terminal session, we can use the link:./deploy/crds/app_v1alpha1_p
 
 ```
 # create a custom PodSet resource to obtain 3 pods
-$ oc create -f deploy/crds/app_v1alpha1_podset_cr.yaml
+$ oc create -f deploy/crds/app.example.com_podsets_cr.yaml
 podset.app.example.com/example-podset created
 
 # after checking the operator controller logs...
