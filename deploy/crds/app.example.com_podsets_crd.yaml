@@ -3,6 +3,13 @@ kind: CustomResourceDefinition
 metadata:
   name: podsets.app.example.com
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .spec.replicas
+    name: Desired
+    type: string
+  - JSONPath: .status.replicas
+    name: Current
+    type: string
   group: app.example.com
   names:
     kind: PodSet
@@ -44,8 +51,12 @@ spec:
               items:
                 type: string
               type: array
+            replicas:
+              format: int32
+              type: integer
           required:
           - podNames
+          - replicas
           type: object
       type: object
   version: v1alpha1
