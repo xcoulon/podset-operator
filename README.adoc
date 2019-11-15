@@ -7,3 +7,69 @@ This PodSet operator takes care of scaling up and down pods that run a `sleep 36
 - see how the CRD and operator controller can be defined, packaged and deployed 
 - demonstrate the logic of reconcialation when a custom resource changes, or when pods are added or removed by a user
 
+== Requirements
+
+- go 1.13
+- operator-sdk 0.12.0
+- a connection to an OpenShift or Kubernetes cluster
+
+== Building and deploying
+
+Before deploying the operator, we need to create the link:./tree/master/deploy/crds[Custom Resource Definitions], which (as their name suggests) define the custom resources we will manage with this operator, and we also need to configure the link:./tree/master/deploy/service_account.yaml[Service Account] along with its link:./tree/master/deploy/role.yaml[role] and link:./tree/master/deploy/role_binding.yaml[role binding].
+
+The commands below use the `oc` CLI which is the equivalent of `kubectl` for OpenShift.
+
+```
+# create a project/namespace for the Service Account and the operator controller
+$ oc new-project podset-operator-test
+Now using project "podset-operator-test" on server ...
+
+# Create the CRDs
+$ oc create -f deploy/crds/app_v1alpha1_podset_crd.yaml
+customresourcedefinition.apiextensions.k8s.io/podsets.app.example.com created
+
+# create the Service Account
+$ oc create -f deploy/service_account.yaml
+serviceaccount/podset-operator created
+
+# apply the role and role binding to the service account
+$ oc create -f deploy/role.yaml
+role.rbac.authorization.k8s.io/podset-operator created
+
+$ oc create -f deploy/role_binding.yaml
+rolebinding.rbac.authorization.k8s.io/podset-operator created
+
+```
+
+
+=== Testing the operator
+
+The Operator SDK provides a command to run the operator controller locally (ie, on the developer's machine). In this mode, the operator controller will use the cluster's external API to create, list, update, delete and watch the resources in the namespace.
+
+```
+$ operator-sdk up local --namespace podset-operator-test
+INFO[0000] Running the operator locally.                
+INFO[0000] Using namespace podset-operator-test.        
+{"level":"info","ts":1573804940.828196,"logger":"cmd","caller":"manager/main.go:26","msg":"Go Version: go1.13.4"}
+{"level":"info","ts":1573804940.828258,"logger":"cmd","caller":"manager/main.go:27","msg":"Go OS/Arch: darwin/amd64"}
+...
+```
+
+in a second terminal, we can use the link:./tree/master/deploy/crds/app_v1alpha1_podset_cr.yaml[custom resource example] to see how the operator controller reacts:
+
+```
+# create a custom PodSet resource to obtain 3 pods
+$ oc create -f deploy/crds/app_v1alpha1_podset_cr.yaml
+podset.app.example.com/example-podset created
+
+# after checking the operator controller logs...
+$ oc get pods
+NAME                      READY   STATUS    RESTARTS   AGE
+example-podset-pod46ttq   1/1     Running   0          2m19s
+example-podset-pod885mx   1/1     Running   0          2m20s
+example-podset-podtqdzs   1/1     Running   0          2m19s
+```
+
+== License
+
+This project is available under the link:./tree/master/LICENSE[Apache License, Version 2.0].
