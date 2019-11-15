@@ -131,6 +131,7 @@ func (r *ReconcilePodSet) Reconcile(request reconcile.Request) (reconcile.Result
 	reqLogger.Info("Checking podset", "expected replicas", podSet.Spec.Replicas, "Pod.Names", existingPodNames)
 	// Update the status if necessary
 	status := appv1alpha1.PodSetStatus{
+		Replicas: int32(len(existingPodNames)),
 		PodNames: existingPodNames,
 	}
 	if !reflect.DeepEqual(podSet.Status, status) {
